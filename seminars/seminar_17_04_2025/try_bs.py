@@ -5,10 +5,10 @@ Listing for practice with beautifulsoup4 library
 # pylint: disable=missing-timeout
 
 from urllib.parse import urlparse, urlunparse
-
+import requests
+from bs4 import BeautifulSoup
 try:
-    import requests
-    from bs4 import BeautifulSoup
+    url = "https://klops.ru/kaliningrad/2025-04-18/354868-vnutrenney-bashne-zamka-noyhauzen-v-gurievske-vernuli-istoricheskiy-shpil-foto"
 except ImportError:
     print("No libraries installed. Failed to import.")
 
@@ -17,13 +17,18 @@ def main() -> None:
     """
     Entrypoint for a seminar's listing
     """
-    correct_url = "https://www.nn.ru/text/gorod/2023/04/03/72186935/"
+    correct_url = "https://klops.ru/kaliningrad/2025-04-18/354868-vnutrenney-bashne-zamka-noyhauzen-v-gurievske-vernuli-istoricheskiy-shpil-foto"
     response = requests.get(correct_url)
     response.encoding = "utf-8"
 
+
     # 1. Creating instance of soup
     # install 'lxml' first or remove it from arguments below
-    soup = BeautifulSoup(response.text, "lxml")
+    soup = BeautifulSoup(response.text, features="lxml")
+
+    print(soup.title.text)
+    print(soup.find('h1').text)
+    print(soup.find_all('h1'))
 
     # 2. Getting tags by dot notation
     if soup.title:
