@@ -1,10 +1,10 @@
 {
     "seed_urls": [
-        "https://klops.ru/",
         "https://klops.ru/news",
-        "https://klops.ru/articles",
-        "https://klops.ru/interview",
-        "https://klops.ru/opinion"
+    "https://klops.ru/articles",
+    "https://klops.ru/interview",
+    "https://klops.ru/tag/proisshestviya",
+    "https://klops.ru/tag/politika"
     ],
     "headers": {
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36",
