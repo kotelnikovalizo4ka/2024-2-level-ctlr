@@ -242,28 +242,25 @@ class Crawler:
         self._config = config
         self._seed_urls = self._config.get_seed_urls()
         self.urls = []
+        self._seen_urls = set()
 
     @staticmethod
     def _extract_url(article_bs: BeautifulSoup) -> str:
         """
         Extract URL from article HTML.
         """
-        # Try multiple possible selectors
-        link = (article_bs.find('a', class_='list-item__title') or
-                article_bs.find('a', class_='article-link') or
-                article_bs.find('a', href=True))
-
+        link = article_bs.find('a', href=True)
         if not link:
             return ""
 
-        href = link.get('href', "")
+        href = link['href']
         if not href:
             return ""
 
-        # Handle relative URLs
         if href.startswith('/'):
             return f"https://klops.ru{href}"
         return href if href.startswith('http') else ""
+
 
     def find_articles(self) -> None:
         """
@@ -271,25 +268,24 @@ class Crawler:
         """
         for seed_url in self._seed_urls:
             try:
-                response = make_request(seed_url, self._config)
-                soup = BeautifulSoup(response.content, "lxml")
+                for page in range(1, 4):
+                    paginated_url = f"{seed_url}?page={page}"
+                    response = make_request(paginated_url, self._config)
+                    soup = BeautifulSoup(response.content, 'lxml')
 
-                # Try different article selectors
-                articles = (soup.find_all('article') or
-                            soup.find_all('div', class_='article') or
-                            soup.find_all('div', class_='list-item'))
+                    articles = soup.find_all('div', class_='list-item')
+                    for article in articles:
+                        if len(self.urls) >= self._config.get_num_articles():
+                            return
 
-                for article in articles:
-                    if len(self.urls) >= self._config.get_num_articles():
-                        return
+                        url = self._extract_url(article)
+                        if url and url not in self._seen_urls:
+                            self.urls.append(url)
+                            self._seen_urls.add(url)
 
-                    url = self._extract_url(article)
-                    if url and url not in self.urls:
-                        self.urls.append(url)
+            except Exception as e:
+                print(f"Error processing {seed_url}: {e}")
 
-            except requests.RequestException as e:
-                print(f"Failed to process {seed_url}: {str(e)}")
-                continue
 
     def get_search_urls(self) -> list:
         """
@@ -299,7 +295,6 @@ class Crawler:
             list: seed_urls param
         """
         return self._seed_urls
-
 
 # 10
 # 4, 6, 8, 10
