@@ -259,7 +259,7 @@ class Crawler:
 
         if isinstance(href, str):
             if href.startswith('/'):
-                return f"https: // klops.ru{href}"
+                return f"https://klops.ru{href}"
             if href.startswith('http'):
                 return href
         return ''
