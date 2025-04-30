@@ -285,7 +285,6 @@ class Crawler:
                     self.urls.append(extracted_url)
                 extracted_url = self._extract_url(soup)
 
-
     def get_search_urls(self) -> list:
         """
         Get seed_urls param.
