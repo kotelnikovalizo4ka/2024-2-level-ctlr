@@ -100,6 +100,14 @@ class Config:
         """
         config_dto = self._extract_config_content()
 
+        if not isinstance(config_dto.headers, dict):
+            raise IncorrectHeadersError
+
+        # Validate individual headers
+        for header_value in config_dto.headers.values():
+            if '\n' in str(header_value):
+                raise IncorrectHeadersError("Headers cannot contain newline characters")
+
         if not isinstance(config_dto.seed_urls, list):
             raise IncorrectSeedURLError
 
@@ -315,7 +323,7 @@ class HTMLParser:
         self._full_url = full_url
         self._article_id = article_id
         self._config = config
-        self.article = Article(self._full_url, self._article_id)
+        self.article = Article(url=full_url, article_id=article_id)
 
     def _fill_article_with_text(self, article_soup: BeautifulSoup) -> None:
         """
@@ -324,27 +332,19 @@ class HTMLParser:
         Args:
             article_soup (bs4.BeautifulSoup): BeautifulSoup instance
         """
-        main_content = article_soup.find('div', class_='article-body') or \
-                       article_soup.find('div', class_='article-content') or \
-                       article_soup.find('article')
+        content = article_soup.find('div', class_='article-body') or \
+                  article_soup.find('article')
 
-        if not main_content:
-            main_content = article_soup.find('body') or article_soup
-            for elem in main_content.find_all(['header', 'footer', 'nav', 'aside', 'script', 'style']):
+        if not content:
+            content = article_soup.find('body') or article_soup
+            for elem in content.find_all(['header', 'footer', 'nav', 'aside', 'script', 'style']):
                 elem.decompose()
 
-        paragraphs = main_content.find_all('p', recursive=False) or [main_content]
-        clean_text = []
+        paragraphs = content.find_all('p', recursive=False) or [content]
+        clean_text = [p.get_text(' ', strip=True) for p in paragraphs if p.get_text(strip=True)]
 
-        for p in paragraphs:
-            text = p.get_text(' ', strip=True)
-            if text and len(text) > 10:  # Skip very short paragraphs
-                clean_text.append(text)
-
-        full_text = '\n'.join(clean_text) if clean_text else main_content.get_text(' ', strip=True)
-
-        full_text = ' '.join(full_text.split())
-        self.article.text = full_text
+        full_text = '\n'.join(clean_text) if clean_text else content.get_text(' ', strip=True)
+        self.article.text = ' '.join(full_text.split())
 
     def _fill_article_with_meta_information(self, article_soup: BeautifulSoup) -> None:
         """
