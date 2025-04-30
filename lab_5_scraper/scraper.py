@@ -45,7 +45,7 @@ class IncorrectEncodingError(Exception):
 
 
 class IncorrectTimeoutError(Exception):
-    """"Timeout must be a positive integer less than 60"""
+    """Timeout must be a positive integer less than 60"""
 
 
 class IncorrectVerifyError(Exception):
@@ -211,18 +211,23 @@ def make_request(url: str, config: Config) -> requests.models.Response:
     Returns:
         requests.models.Response: A response from a request
     """
-    sleep_time = randint(1, 3)
-    sleep(sleep_time)
+    try:
+        sleep_time = randint(1, 3)
+        sleep(sleep_time)
 
-    request = requests.get(
-        url,
-        headers=config.get_headers(),
-        timeout=config.get_timeout(),
-        verify=config.get_verify_certificate()
-    )
+        request = requests.get(
+            url,
+            headers=config.get_headers(),
+            timeout=config.get_timeout(),
+            verify=config.get_verify_certificate()
+        )
+        request.raise_for_status()
+        request.encoding = config.get_encoding()
+        return request
 
-    request.encoding = config.get_encoding()
-    return request
+    except requests.RequestException as e:
+        print(f"Request failed for {url}: {e}")
+        raise
 
 
 class Crawler:
@@ -244,17 +249,21 @@ class Crawler:
         self._seed_urls = self._config.get_seed_urls()
         self.urls = []
 
-    def _extract_url(self, article_bs: BeautifulSoup) -> str:
+    @staticmethod
+    def _extract_url(article_bs: BeautifulSoup) -> str:
         """
         Find and retrieve url from HTML.
 
         Args:
-            article_bs (bs4.BeautifulSoup): BeautifulSoup instance
+            article_bs (bs4.BeautifulSoup): BeautifulSoup instance containing article data
 
         Returns:
-            str: Url from HTML
+            str: Extracted URL or empty string if not found
         """
-        link = article_bs.find('a', class_='list-item__title')
+        link = (article_bs.find('a', class_='list-item__title') or
+                article_bs.find('a', class_='article-link') or
+                article_bs.find('a', href=True))
+
         if not link:
             return ""
 
@@ -268,26 +277,27 @@ class Crawler:
             return href
         return ""
 
-
-
-
     def find_articles(self) -> None:
         """
         Find articles.
         """
         for seed_url in self._seed_urls:
-            res = make_request(seed_url, self._config)
+            try:
+                res = make_request(seed_url, self._config)
+                soup = BeautifulSoup(res.content, "lxml")
 
-            soup = BeautifulSoup(res.content, "lxml")
+                articles = soup.find_all('article') or soup.find_all('div', class_='article')
 
-            for paragraph in soup.find_all('h1', class_='entry-title'):
-                if len(self.urls) >= self._config.get_num_articles():
-                    return None
+                for article in articles:
+                    if len(self.urls) >= self._config.get_num_articles():
+                        return
 
-                url = self._extract_url(paragraph)
+                    url = self._extract_url(article)
+                    if url and url not in self.urls:
+                        self.urls.append(url)
 
-                if url and url not in self.urls:
-                    self.urls.append(url)
+            except requests.RequestException:
+                continue
 
     def get_search_urls(self) -> list:
         """

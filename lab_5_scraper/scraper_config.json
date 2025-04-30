@@ -1,12 +1,7 @@
 {
     "seed_urls": [
         "https://klops.ru/",
-        "https://klops.ru/tag/proisshestviya-i-kriminal?from=menud",
-        "https://klops.ru/tag/politika-ekonomika-i-biznes?from=menud",
-        "https://klops.ru/tag/sotsialnaya-sfera?from=menud",
-        "https://klops.ru/tag/weekend?from=menud",
-        "https://klops.ru/tag/auto?from=menud",
-        "https://klops.ru/tag/nauka-tehnologii-i-hi-tech?from=menud"
+        "https://klops.ru/articles"
     ],
     "headers": {
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36",
