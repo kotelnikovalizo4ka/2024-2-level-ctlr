@@ -6,7 +6,7 @@ Crawler implementation.
 import json
 import pathlib
 import shutil
-from typing import Pattern, Union
+from typing import Union
 import re
 import datetime
 from random import randint
@@ -235,15 +235,9 @@ class Crawler:
     Crawler implementation.
     """
 
-    #: Url pattern
-    url_pattern: Union[Pattern, str]
-
     def __init__(self, config: Config) -> None:
         """
-        Initialize an instance of the Crawler class.
-
-        Args:
-            config (Config): Configuration
+        Initialize crawler with config.
         """
         self._config = config
         self._seed_urls = self._config.get_seed_urls()
@@ -252,14 +246,9 @@ class Crawler:
     @staticmethod
     def _extract_url(article_bs: BeautifulSoup) -> str:
         """
-        Find and retrieve url from HTML.
-
-        Args:
-            article_bs (bs4.BeautifulSoup): BeautifulSoup instance containing article data
-
-        Returns:
-            str: Extracted URL or empty string if not found
+        Extract URL from article HTML.
         """
+        # Try multiple possible selectors
         link = (article_bs.find('a', class_='list-item__title') or
                 article_bs.find('a', class_='article-link') or
                 article_bs.find('a', href=True))
@@ -267,26 +256,28 @@ class Crawler:
         if not link:
             return ""
 
-        href = link.get('href')
+        href = link.get('href', "")
         if not href:
             return ""
 
+        # Handle relative URLs
         if href.startswith('/'):
             return f"https://klops.ru{href}"
-        if href.startswith('http'):
-            return href
-        return ""
+        return href if href.startswith('http') else ""
 
     def find_articles(self) -> None:
         """
-        Find articles.
+        Find and collect article URLs from seed pages.
         """
         for seed_url in self._seed_urls:
             try:
-                res = make_request(seed_url, self._config)
-                soup = BeautifulSoup(res.content, "lxml")
+                response = make_request(seed_url, self._config)
+                soup = BeautifulSoup(response.content, "lxml")
 
-                articles = soup.find_all('article') or soup.find_all('div', class_='article')
+                # Try different article selectors
+                articles = (soup.find_all('article') or
+                            soup.find_all('div', class_='article') or
+                            soup.find_all('div', class_='list-item'))
 
                 for article in articles:
                     if len(self.urls) >= self._config.get_num_articles():
@@ -296,7 +287,8 @@ class Crawler:
                     if url and url not in self.urls:
                         self.urls.append(url)
 
-            except requests.RequestException:
+            except requests.RequestException as e:
+                print(f"Failed to process {seed_url}: {str(e)}")
                 continue
 
     def get_search_urls(self) -> list:
