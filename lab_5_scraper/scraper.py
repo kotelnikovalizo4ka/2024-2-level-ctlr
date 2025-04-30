@@ -324,11 +324,27 @@ class HTMLParser:
         Args:
             article_soup (bs4.BeautifulSoup): BeautifulSoup instance
         """
-        main_bs = article_soup.find('div', class_='entry-content')
-        text_tag = main_bs.find_all("p") if main_bs else []
+        main_content = article_soup.find('div', class_='article-body') or \
+                       article_soup.find('div', class_='article-content') or \
+                       article_soup.find('article')
 
-        find_text = [text.get_text(strip=True) for text in text_tag]
-        self.article.text = "\n".join(find_text)
+        if not main_content:
+            main_content = article_soup.find('body') or article_soup
+            for elem in main_content.find_all(['header', 'footer', 'nav', 'aside', 'script', 'style']):
+                elem.decompose()
+
+        paragraphs = main_content.find_all('p', recursive=False) or [main_content]
+        clean_text = []
+
+        for p in paragraphs:
+            text = p.get_text(' ', strip=True)
+            if text and len(text) > 10:  # Skip very short paragraphs
+                clean_text.append(text)
+
+        full_text = '\n'.join(clean_text) if clean_text else main_content.get_text(' ', strip=True)
+
+        full_text = ' '.join(full_text.split())
+        self.article.text = full_text
 
     def _fill_article_with_meta_information(self, article_soup: BeautifulSoup) -> None:
         """
