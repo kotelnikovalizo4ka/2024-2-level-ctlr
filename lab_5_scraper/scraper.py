@@ -65,15 +65,15 @@ class Config:
             path_to_config (pathlib.Path): Path to configuration.
         """
         self.path_to_config = path_to_config
-        config_data = self._extract_config_content()
+        self._config = self._extract_config_content()
         self._validate_config_content()
-        self._seed_urls = config_data.seed_urls
-        self._num_articles = config_data.total_articles
-        self._headers = config_data.headers
-        self._encoding = config_data.encoding
-        self._timeout = config_data.timeout
-        self._should_verify_certificate = config_data.should_verify_certificate
-        self._headless_mode = config_data.headless_mode
+        self._seed_urls = self._config.seed_urls
+        self._num_articles = self._config.total_articles
+        self._headers = self._config.headers
+        self._encoding = self._config.encoding
+        self._timeout = self._config.timeout
+        self._should_verify_certificate = self._config.should_verify_certificate
+        self._headless_mode = self._config.headless_mode
 
     def _extract_config_content(self) -> ConfigDTO:
         """
@@ -254,12 +254,16 @@ class Crawler:
         Returns:
             str: Url from HTML
         """
-        href = article_bs.find("a").get('href')
+        link = article_bs.find('a', class_='list-item__title')
+        href = link.get('href') if link else None
 
-        if href and href.startswith("https://klops.ru/"):
-            return href
+        if isinstance(href, str):
+            if href.startswith('/'):
+                return f"https: // klops.ru{href}"
+            if href.startswith('http'):
+                return href
+        return ''
 
-        return ""
 
     def find_articles(self) -> None:
         """
@@ -336,10 +340,18 @@ class HTMLParser:
         Args:
             article_soup (bs4.BeautifulSoup): BeautifulSoup instance
         """
-        response = make_request(self._full_url, self._config)
-        main_bs = BeautifulSoup(response.text, "lxml")
-        self._fill_article_with_text(main_bs)
-        return self.article
+        title = article_soup.find('div', class_='article__title')
+
+        self.article.title = title.text if title else 'NOT FOUND'
+
+        self.article.author = ['NOT FOUND']
+        date_block = article_soup.find('div', class_='article__info-date')
+        if date_block and date_block.a:
+            raw_date = date_block.a.text.strip()
+            self.article.date = self.unify_date_format(raw_date)
+
+        topic_tags = article_soup.find_all('a', rel='tag')
+        self.article.topics = [tag.text.strip() for tag in topic_tags] if topic_tags else []
 
     def unify_date_format(self, date_str: str) -> datetime.datetime:
         """
