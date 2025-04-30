@@ -324,14 +324,10 @@ class HTMLParser:
         Args:
             article_soup (bs4.BeautifulSoup): BeautifulSoup instance
         """
-        main_bs = article_soup.find(
-            'div',
-            class_='entry-content',
-        )
-        text_tag = main_bs.find_all("p")
+        main_bs = article_soup.find('div', class_='entry-content')
+        text_tag = main_bs.find_all("p") if main_bs else []
 
         find_text = [text.get_text(strip=True) for text in text_tag]
-
         self.article.text = "\n".join(find_text)
 
     def _fill_article_with_meta_information(self, article_soup: BeautifulSoup) -> None:
@@ -342,10 +338,10 @@ class HTMLParser:
             article_soup (bs4.BeautifulSoup): BeautifulSoup instance
         """
         title = article_soup.find('div', class_='article__title')
+        self.article.title = title.text if title else 'НЕ НАЙДЕНО'
 
-        self.article.title = title.text if title else 'NOT FOUND'
+        self.article.author = ['НЕ НАЙДЕНО']
 
-        self.article.author = ['NOT FOUND']
         date_block = article_soup.find('div', class_='article__info-date')
         if date_block and date_block.a:
             raw_date = date_block.a.text.strip()
@@ -365,7 +361,6 @@ class HTMLParser:
             datetime.datetime: Datetime object
         """
 
-
     def parse(self) -> Union[Article, bool, list]:
         """
         Parse each article.
@@ -373,6 +368,21 @@ class HTMLParser:
         Returns:
             Union[Article, bool, list]: Article instance
         """
+        try:
+            response = make_request(self._full_url, self._config)
+            if not response.ok:
+                return self.article
+
+            soup = BeautifulSoup(response.text, 'lxml')
+
+            self._fill_article_with_text(soup)
+            self._fill_article_with_meta_information(soup)
+
+            return self.article
+
+        except Exception as e:
+            print(f"Ошибка при парсинге статьи {self._full_url}: {e}")
+            return self.article
 
 def prepare_environment(base_path: Union[pathlib.Path, str]) -> None:
     """
