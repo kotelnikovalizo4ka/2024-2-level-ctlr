@@ -7,15 +7,15 @@ import json
 import pathlib
 import shutil
 from typing import Pattern, Union
-from core_utils.config_dto import ConfigDTO
-from core_utils.article.io import to_raw
 import re
 import datetime
-from core_utils.article.article import Article
-import requests
-from bs4 import BeautifulSoup
 from random import randint
 from time import sleep
+import requests
+from bs4 import BeautifulSoup
+from core_utils.config_dto import ConfigDTO
+from core_utils.article.io import to_raw
+from core_utils.article.article import Article
 from core_utils.constants import (
     ASSETS_PATH,
     CRAWLER_CONFIG_PATH,
@@ -255,14 +255,20 @@ class Crawler:
             str: Url from HTML
         """
         link = article_bs.find('a', class_='list-item__title')
-        href = link.get('href') if link else None
+        if not link:
+            return ""
 
-        if isinstance(href, str):
-            if href.startswith('/'):
-                return f"https://klops.ru{href}"
-            if href.startswith('http'):
-                return href
-        return ''
+        href = link.get('href')
+        if not href:
+            return ""
+
+        if href.startswith('/'):
+            return f"https://klops.ru{href}"
+        if href.startswith('http'):
+            return href
+        return ""
+
+
 
 
     def find_articles(self) -> None:
@@ -372,6 +378,7 @@ class HTMLParser:
         Returns:
             Union[Article, bool, list]: Article instance
         """
+
 
 
 def prepare_environment(base_path: Union[pathlib.Path, str]) -> None:
