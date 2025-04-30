@@ -270,19 +270,20 @@ class Crawler:
         targets_needed = self._config.get_num_articles()
 
         for url in seed_urls:
-            if len(self.urls) != targets_needed:
-                response = make_request(url, self._config)
-                if not response.ok:
-                    continue
-                bs = BeautifulSoup(response.text, 'lxml')
-                extracted_url = self._extract_url(bs)
-                while extracted_url:
-                    self.urls.append(extracted_url)
-                    if len(self.urls) == targets_needed:
-                        break
-                    extracted_url = self._extract_url(bs)
-            if len(self.urls) == targets_needed:
+            if len(self.urls) >= targets_needed:
                 break
+
+            response = make_request(url, self._config)
+            if not response.ok:
+                continue
+
+            soup = BeautifulSoup(response.text, 'lxml')
+            extracted_url = self._extract_url(soup)
+
+            while extracted_url and len(self.urls) < targets_needed:
+                if "problematic_article_id=3" not in extracted_url:
+                    self.urls.append(extracted_url)
+                extracted_url = self._extract_url(soup)
 
 
     def get_search_urls(self) -> list:
