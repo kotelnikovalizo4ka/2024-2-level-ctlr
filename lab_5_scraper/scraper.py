@@ -266,25 +266,23 @@ class Crawler:
         """
         Find and collect article URLs from seed pages.
         """
-        for seed_url in self._seed_urls:
-            try:
-                for page in range(1, 4):
-                    paginated_url = f"{seed_url}?page={page}"
-                    response = make_request(paginated_url, self._config)
-                    soup = BeautifulSoup(response.content, 'lxml')
+        seed_urls = self.get_search_urls()
+        targets_needed = self._config.get_num_articles()
 
-                    articles = soup.find_all('div', class_='list-item')
-                    for article in articles:
-                        if len(self.urls) >= self._config.get_num_articles():
-                            return
-
-                        url = self._extract_url(article)
-                        if url and url not in self._seen_urls:
-                            self.urls.append(url)
-                            self._seen_urls.add(url)
-
-            except Exception as e:
-                print(f"Error processing {seed_url}: {e}")
+        for url in seed_urls:
+            if len(self.urls) != targets_needed:
+                response = make_request(url, self._config)
+                if not response.ok:
+                    continue
+                bs = BeautifulSoup(response.text, 'lxml')
+                extracted_url = self._extract_url(bs)
+                while extracted_url:
+                    self.urls.append(extracted_url)
+                    if len(self.urls) == targets_needed:
+                        break
+                    extracted_url = self._extract_url(bs)
+            if len(self.urls) == targets_needed:
+                break
 
 
     def get_search_urls(self) -> list:
