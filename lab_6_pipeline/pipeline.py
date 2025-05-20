@@ -279,7 +279,6 @@ class POSFrequencyPipeline:
         Visualize the frequencies of each part of speech.
         """
 
-
 class PatternSearchPipeline(PipelineProtocol):
     """
     Search for the required syntactic pattern.
@@ -336,7 +335,6 @@ class PatternSearchPipeline(PipelineProtocol):
         """
         Search for a pattern in documents and writes found information to JSON file.
         """
-
 
 def main() -> None:
     """
