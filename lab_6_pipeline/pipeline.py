@@ -96,7 +96,6 @@ class CorpusManager:
         """
         return self._storage
 
-
 class TextProcessingPipeline(PipelineProtocol):
     """
     Preprocess and morphologically annotate sentences into the CONLL-U format.
@@ -188,7 +187,6 @@ class UDPipeAnalyzer(LibraryWrapper):
             UnifiedCoNLLUDocument: Dictionary of token features within document sentences
         """
 
-
 class StanzaAnalyzer(LibraryWrapper):
     """
     Wrapper for stanza library.
@@ -250,7 +248,6 @@ class StanzaAnalyzer(LibraryWrapper):
         Returns:
             UnifiedCoNLLUDocument: Document of token features within document sentences
         """
-
 
 class POSFrequencyPipeline:
     """
