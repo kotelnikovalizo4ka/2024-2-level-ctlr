@@ -187,6 +187,7 @@ class UDPipeAnalyzer(LibraryWrapper):
             UnifiedCoNLLUDocument: Dictionary of token features within document sentences
         """
 
+
 class StanzaAnalyzer(LibraryWrapper):
     """
     Wrapper for stanza library.
@@ -249,6 +250,7 @@ class StanzaAnalyzer(LibraryWrapper):
             UnifiedCoNLLUDocument: Document of token features within document sentences
         """
 
+
 class POSFrequencyPipeline:
     """
     Count frequencies of each POS in articles, update meta info and produce graphic report.
@@ -278,6 +280,7 @@ class POSFrequencyPipeline:
         """
         Visualize the frequencies of each part of speech.
         """
+
 
 class PatternSearchPipeline(PipelineProtocol):
     """
