@@ -286,7 +286,6 @@ class POSFrequencyPipeline:
         Visualize the frequencies of each part of speech.
         """
 
-
 class PatternSearchPipeline(PipelineProtocol):
     """
     Search for the required syntactic pattern.

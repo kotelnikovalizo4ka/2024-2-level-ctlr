@@ -220,8 +220,6 @@ def make_request(url: str, config: Config) -> requests.models.Response:
         requests.models.Response: A response from a request
     """
     try:
-        sleep_time = randint(1, 3)
-        sleep(sleep_time)
 
         request = requests.get(
             url,
