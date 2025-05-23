@@ -4,10 +4,12 @@ Pipeline for CONLL-U formatting.
 
 # pylint: disable=too-few-public-methods, undefined-variable, too-many-nested-blocks
 import pathlib
+import re
 
 from networkx import DiGraph
-
 from core_utils.article.article import Article
+from core_utils.article.io import from_raw, to_cleaned
+from core_utils.constants import ASSETS_PATH
 from core_utils.pipeline import (
     AbstractCoNLLUAnalyzer,
     CoNLLUDocument,
@@ -19,21 +21,19 @@ from core_utils.pipeline import (
     UnifiedCoNLLUDocument,
 )
 
-import re
-from pathlib import Path
-from typing import Dict
-
-from core_utils.article.io import to_cleaned
-from core_utils.constants import ASSETS_PATH
+class InconsistentDatasetError(Exception):
+    """
+    Raised when IDs contain slips, number of meta and raw files is not equal, files are empty.
+    """
 
 class EmptyDirectoryError(Exception):
-    """Directory is empty."""
-
-class InconsistentDatasetError(Exception):
-    """Dataset contains invalid files or IDs."""
-
+    """
+    Raised when directory is empty.
+    """
 class EmptyFileError(Exception):
-    """The file is empty."""
+    """
+    Raised when file is empty.
+    """
 
 class CorpusManager:
     """
@@ -48,9 +48,9 @@ class CorpusManager:
             path_to_raw_txt_data (pathlib.Path): Path to raw txt data
         """
         self._path_to_raw_txt_data = path_to_raw_txt_data
-        self._storage: Dict[int, Article] = {}
-        self._scan_dataset()
+        self._storage = {}
         self._validate_dataset()
+        self._scan_dataset()
 
     def _validate_dataset(self) -> None:
         """
@@ -60,33 +60,34 @@ class CorpusManager:
             raise FileNotFoundError(f"File '{self._path_to_raw_txt_data}' does not exist")
         if not self._path_to_raw_txt_data.is_dir():
             raise NotADirectoryError(f"Path '{self._path_to_raw_txt_data}' does not lead to directory")
+
         dir_of_raw_files = list(self._path_to_raw_txt_data.glob('*_raw.txt'))
         dir_of_meta_files = list(self._path_to_raw_txt_data.glob('*_meta.json'))
+
         if not dir_of_raw_files and not dir_of_meta_files:
-            raise EmptyDirectoryError(f'Directory is empty: {self._path_to_raw_txt_data} :(')
+            raise EmptyDirectoryError(f'Directory is empty: {self._path_to_raw_txt_data}')
 
         all_raw_ids = set()
         for raw in dir_of_raw_files:
             if raw.stat().st_size == 0:
-                raise InconsistentDatasetError(f'The file {raw} is empty')
+                raise EmptyFileError(f'The file {raw} is empty')
             if raw.name.endswith('_raw.txt'):
                 all_raw_ids.add(raw.name)
+
         good_raw = {f'{i}_raw.txt' for i in range(1, len(all_raw_ids) + 1)}
         if all_raw_ids != good_raw:
             raise InconsistentDatasetError('IDs of raw files have slips')
+        for text_file in self._path_to_raw_txt_data.glob('*_raw.txt'):
+            if text_file.stat().st_size == 0:
+                raise EmptyFileError(f"Empty text file found: {text_file.name}")
 
     def _scan_dataset(self) -> None:
         """
         Register each dataset entry.
         """
-        raw_files = self._path_to_raw_txt_data.glob('*_raw.txt')
-        for file in raw_files:
-            match = re.match(r'(\d+)_raw\.txt', file.name)
-            if not match:
-                continue
-
-            article_id = int(match.group(1))
-            article = Article(url=None, article_id=article_id)
+        for file in self._path_to_raw_txt_data.glob('*_raw.txt'):
+            article = from_raw(file, article=None)
+            article_id = int(file.name[:-8])
             self._storage[article_id] = article
 
     def get_articles(self) -> dict:
@@ -120,15 +121,8 @@ class TextProcessingPipeline(PipelineProtocol):
         """
         Perform basic preprocessing and write processed text to files.
         """
-        articles = self._corpus_manager.get_articles().values()
-        for article in articles:
-            raw_text = article.get_raw_text()
-            if raw_text:
-                cleaned_text = re.sub(r'[^\w\s]', '', raw_text).lower()
-                cleaned_text = ' '.join(cleaned_text.split())
-
-                article.save_cleaned_text(cleaned_text)
-                to_cleaned(article)
+        for article in self._corpus_manager.get_articles().values():
+            to_cleaned(article)
 
 class UDPipeAnalyzer(LibraryWrapper):
     """
@@ -286,6 +280,7 @@ class POSFrequencyPipeline:
         Visualize the frequencies of each part of speech.
         """
 
+
 class PatternSearchPipeline(PipelineProtocol):
     """
     Search for the required syntactic pattern.
@@ -347,8 +342,9 @@ def main() -> None:
     """
     Entrypoint for pipeline module.
     """
-    corpus_manager = CorpusManager(ASSETS_PATH)
-    pipeline = TextProcessingPipeline(corpus_manager)
+    corpus_manager = CorpusManager(path_to_raw_txt_data=ASSETS_PATH)
+    udpipe_analyzer = UDPipeAnalyzer()
+    pipeline = TextProcessingPipeline(corpus_manager, analyzer=udpipe_analyzer)
     pipeline.run()
 
 if __name__ == "__main__":

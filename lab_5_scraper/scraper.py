@@ -324,20 +324,6 @@ class HTMLParser:
         self._config = config
         self.article = Article(url=full_url, article_id=article_id)
 
-        def _save_meta(self) -> None:
-            """
-            Save article metadata to _meta.json file.
-            """
-            meta_data = {
-                "id": self._article_id,
-                "title": self.article.title,
-                "author": self.article.author,
-                "url": self._full_url
-            }
-
-            meta_path = ASSETS_PATH / f"{self._article_id}_meta.json"
-            with open(meta_path, 'w', encoding='utf-8') as meta_file:
-                json.dump(meta_data, meta_file, ensure_ascii=False, indent=4)
 
     def _fill_article_with_text(self, article_soup: BeautifulSoup) -> None:
         """
