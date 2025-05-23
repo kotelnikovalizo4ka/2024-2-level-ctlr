@@ -23,7 +23,6 @@ import re
 from pathlib import Path
 from typing import Dict
 
-from core_utils.article.article import Article
 from core_utils.article.io import to_cleaned
 from core_utils.constants import ASSETS_PATH
 
@@ -32,6 +31,9 @@ class EmptyDirectoryError(Exception):
 
 class InconsistentDatasetError(Exception):
     """Dataset contains invalid files or IDs."""
+
+class EmptyFileError(Exception):
+    """The file is empty."""
 
 class CorpusManager:
     """
@@ -47,45 +49,45 @@ class CorpusManager:
         """
         self._path_to_raw_txt_data = path_to_raw_txt_data
         self._storage: Dict[int, Article] = {}
-        self._validate_dataset()
         self._scan_dataset()
+        self._validate_dataset()
 
     def _validate_dataset(self) -> None:
         """
         Validate folder with assets.
         """
         if not self._path_to_raw_txt_data.exists():
-            raise FileNotFoundError(f"Directory not found: {self._path_to_raw_txt_data}")
-
+            raise FileNotFoundError(f"File '{self._path_to_raw_txt_data}' does not exist")
         if not self._path_to_raw_txt_data.is_dir():
-            raise NotADirectoryError(f"Not a directory: {self._path_to_raw_txt_data}")
+            raise NotADirectoryError(f"Path '{self._path_to_raw_txt_data}' does not lead to directory")
+        dir_of_raw_files = list(self._path_to_raw_txt_data.glob('*_raw.txt'))
+        dir_of_meta_files = list(self._path_to_raw_txt_data.glob('*_meta.json'))
+        if not dir_of_raw_files and not dir_of_meta_files:
+            raise EmptyDirectoryError(f'Directory is empty: {self._path_to_raw_txt_data} :(')
 
-        files = list(self._path_to_raw_txt_data.glob('*_raw.txt'))
-        if not files:
-            raise EmptyDirectoryError(f"Directory is empty: {self._path_to_raw_txt_data}")
-
-        ids = []
-        for file in files:
-            if match := re.match(r'(\d+)_raw\.txt', file.name):
-                file_id = int(match.group(1))
-                ids.append(file_id)
-                if file.stat().st_size == 0:
-                    raise InconsistentDatasetError(f"Empty file: {file.name}")
-
-        if not ids:
-            raise InconsistentDatasetError("No valid raw files found")
-
-        if sorted(ids) != list(range(1, len(ids) + 1)):
-            raise InconsistentDatasetError("Invalid IDs sequence")
+        all_raw_ids = set()
+        for raw in dir_of_raw_files:
+            if raw.stat().st_size == 0:
+                raise InconsistentDatasetError(f'The file {raw} is empty')
+            if raw.name.endswith('_raw.txt'):
+                all_raw_ids.add(raw.name)
+        good_raw = {f'{i}_raw.txt' for i in range(1, len(all_raw_ids) + 1)}
+        if all_raw_ids != good_raw:
+            raise InconsistentDatasetError('IDs of raw files have slips')
 
     def _scan_dataset(self) -> None:
         """
         Register each dataset entry.
         """
-        for file in self._path_to_raw_txt_data.glob('*_raw.txt'):
-            if match := re.match(r'(\d+)_raw\.txt', file.name):
-                article_id = int(match.group(1))
-                self._storage[article_id] = Article(url=None, article_id=article_id)
+        raw_files = self._path_to_raw_txt_data.glob('*_raw.txt')
+        for file in raw_files:
+            match = re.match(r'(\d+)_raw\.txt', file.name)
+            if not match:
+                continue
+
+            article_id = int(match.group(1))
+            article = Article(url=None, article_id=article_id)
+            self._storage[article_id] = article
 
     def get_articles(self) -> dict:
         """
@@ -112,17 +114,20 @@ class TextProcessingPipeline(PipelineProtocol):
             analyzer (LibraryWrapper | None): Analyzer instance
         """
         self._corpus_manager = corpus_manager
+        self._analyzer = analyzer
 
     def run(self) -> None:
         """
         Perform basic preprocessing and write processed text to files.
         """
-        for article in self._corpus_manager.get_articles().values():
-            if raw_text := article.get_raw_text():
-                text = re.sub(r'[^\w\s]', '', raw_text)
-                text = text.lower()
-                text = ' '.join(text.split())
-                article.save_cleaned_text(text)
+        articles = self._corpus_manager.get_articles().values()
+        for article in articles:
+            raw_text = article.get_raw_text()
+            if raw_text:
+                cleaned_text = re.sub(r'[^\w\s]', '', raw_text).lower()
+                cleaned_text = ' '.join(cleaned_text.split())
+
+                article.save_cleaned_text(cleaned_text)
                 to_cleaned(article)
 
 class UDPipeAnalyzer(LibraryWrapper):
